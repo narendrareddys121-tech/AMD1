@@ -1,0 +1,283 @@
+{% extends 'base.html' %}
+{% block title %}Admin Panel — PhishShield AI{% endblock %}
+
+{% block content %}
+<div class="flex-between animate-in" style="margin-bottom:2rem; flex-wrap:wrap; gap:1rem;">
+  <div>
+    <h1 class="page-title" style="margin-bottom:0.2rem;">
+      ⚙️ Admin <span>Panel</span>
+    </h1>
+    <p class="text-muted" style="font-size:0.9rem;">System overview and detection rule management</p>
+  </div>
+  <button onclick="exportReport()" class="btn btn-outline" style="font-size:0.875rem;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Export Report
+  </button>
+</div>
+
+<!-- System Metrics -->
+<div class="grid-4 animate-in-delay-1" style="margin-bottom:2rem;">
+  <div class="card" style="border-color:rgba(0,217,255,0.2); text-align:center;">
+    <div style="font-size:2.5rem; font-weight:800; color:var(--neon-blue); text-shadow:0 0 20px rgba(0,217,255,0.5);">{{ total_users }}</div>
+    <div class="text-muted" style="font-size:0.8rem; margin-top:0.4rem; text-transform:uppercase; letter-spacing:0.06em;">Total Users</div>
+  </div>
+  <div class="card" style="border-color:rgba(176,38,255,0.2); text-align:center;">
+    <div style="font-size:2.5rem; font-weight:800; color:var(--neon-purple); text-shadow:0 0 20px rgba(176,38,255,0.5);">{{ total_analyses }}</div>
+    <div class="text-muted" style="font-size:0.8rem; margin-top:0.4rem; text-transform:uppercase; letter-spacing:0.06em;">Total Scans</div>
+  </div>
+  <div class="card" style="border-color:rgba(255,68,68,0.2); text-align:center;">
+    <div style="font-size:2.5rem; font-weight:800; color:var(--neon-red); text-shadow:0 0 20px rgba(255,68,68,0.5);">{{ high_risk_count }}</div>
+    <div class="text-muted" style="font-size:0.8rem; margin-top:0.4rem; text-transform:uppercase; letter-spacing:0.06em;">High Risk Caught</div>
+  </div>
+  <div class="card" style="border-color:rgba(57,255,20,0.2); text-align:center;">
+    {% set pct = ((safe_count / total_analyses * 100)|int) if total_analyses > 0 else 0 %}
+    <div style="font-size:2.5rem; font-weight:800; color:var(--neon-green); text-shadow:0 0 20px rgba(57,255,20,0.5);">{{ pct }}%</div>
+    <div class="text-muted" style="font-size:0.8rem; margin-top:0.4rem; text-transform:uppercase; letter-spacing:0.06em;">Safe Rate</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:2rem;" class="animate-in-delay-2">
+  <div class="card">
+    <h3 style="font-size:1rem; font-weight:700; margin-bottom:1rem;">Risk Distribution (All Users)</h3>
+    {% if total_analyses > 0 %}
+    <div style="position:relative; height:200px;">
+      <canvas id="adminRiskChart"></canvas>
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:2rem; color:var(--text-muted); font-size:0.875rem;">No data yet</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:1rem; font-weight:700; margin-bottom:1rem;">System Health</h3>
+    <div style="display:flex; flex-direction:column; gap:0.85rem;">
+      <div>
+        <div class="flex-between" style="font-size:0.85rem; margin-bottom:0.35rem;">
+          <span>Detection Engines</span>
+          <span style="color:var(--neon-green); font-weight:600;">● Online</span>
+        </div>
+        <div class="score-bar"><div class="score-fill" style="width:100%; background:var(--neon-green);"></div></div>
+      </div>
+      <div>
+        <div class="flex-between" style="font-size:0.85rem; margin-bottom:0.35rem;">
+          <span>Database</span>
+          <span style="color:var(--neon-green); font-weight:600;">● Healthy</span>
+        </div>
+        <div class="score-bar"><div class="score-fill" style="width:100%; background:var(--neon-green);"></div></div>
+      </div>
+      <div>
+        <div class="flex-between" style="font-size:0.85rem; margin-bottom:0.35rem;">
+          <span>Active Rules</span>
+          <span style="color:var(--neon-blue); font-weight:600;">{{ rules|selectattr('is_active')|list|length }} / {{ rules|length }}</span>
+        </div>
+        <div class="score-bar">
+          <div class="score-fill" style="width:{% if rules %}{{ (rules|selectattr('is_active')|list|length / rules|length * 100)|int }}{% else %}100{% endif %}%;"></div>
+        </div>
+      </div>
+      <div>
+        <div class="flex-between" style="font-size:0.85rem; margin-bottom:0.35rem;">
+          <span>CSRF Protection</span>
+          <span style="color:var(--neon-green); font-weight:600;">● Enabled</span>
+        </div>
+        <div class="score-bar"><div class="score-fill" style="width:100%; background:var(--neon-green);"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detection Rules Management -->
+<div class="card animate-in-delay-2" style="margin-bottom:2rem;">
+  <div class="flex-between" style="margin-bottom:1.25rem;">
+    <h3 style="font-size:1rem; font-weight:700;">Detection Rules</h3>
+    <button onclick="document.getElementById('add-rule-modal').style.display='flex'" class="btn btn-primary" style="font-size:0.8rem; padding:0.45rem 0.9rem;">
+      + Add Rule
+    </button>
+  </div>
+
+  {% if rules %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Category</th><th>Pattern</th><th>Weight</th><th>Status</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rule in rules %}
+        <tr id="rule-row-{{ rule.id }}">
+          <td style="color:var(--text-muted); font-size:0.8rem;">{{ rule.id }}</td>
+          <td><span class="badge" style="background:rgba(0,217,255,0.1); border-color:rgba(0,217,255,0.2); color:var(--neon-blue);">{{ rule.category }}</span></td>
+          <td style="font-family:monospace; font-size:0.82rem; color:var(--text-muted); max-width:200px; overflow:hidden; text-overflow:ellipsis;">{{ rule.pattern }}</td>
+          <td style="font-size:0.875rem;">{{ rule.weight }}</td>
+          <td>
+            <span id="rule-status-{{ rule.id }}" class="badge {% if rule.is_active %}badge-safe{% else %}badge-high_risk{% endif %}">
+              {% if rule.is_active %}● Active{% else %}● Inactive{% endif %}
+            </span>
+          </td>
+          <td>
+            <button onclick="toggleRule({{ rule.id }})"
+                    class="btn btn-outline" style="padding:0.3rem 0.7rem; font-size:0.78rem;">
+              {% if rule.is_active %}Disable{% else %}Enable{% endif %}
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted" style="font-size:0.875rem; text-align:center; padding:1.5rem 0;">No custom rules yet. Add your first rule above.</p>
+  {% endif %}
+</div>
+
+<!-- Recent Analyses -->
+<div class="card animate-in-delay-3">
+  <h3 style="font-size:1rem; font-weight:700; margin-bottom:1.25rem;">Recent System Analyses</h3>
+  {% if recent_analyses %}
+  <div style="overflow-x:auto;">
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>User ID</th><th>Timestamp</th><th>Risk Level</th><th>Score</th><th>Rule</th><th>NLP</th><th>Regex</th></tr>
+      </thead>
+      <tbody>
+        {% for a in recent_analyses %}
+        <tr>
+          <td style="color:var(--text-muted); font-size:0.8rem;">{{ a.id }}</td>
+          <td style="font-size:0.85rem; color:var(--neon-blue);">#{{ a.user_id }}</td>
+          <td style="font-size:0.82rem; color:var(--text-muted);">{{ a.timestamp.strftime('%b %d %H:%M') }}</td>
+          <td>
+            <span class="badge badge-{{ a.risk_level }}">
+              {% if a.risk_level == 'safe' %}🟢{% elif a.risk_level == 'suspicious' %}🟡{% else %}🔴{% endif %}
+              {{ a.risk_level.replace('_', ' ').title() }}
+            </span>
+          </td>
+          <td style="font-weight:700;
+              color:{% if a.risk_level=='safe' %}var(--neon-green){% elif a.risk_level=='suspicious' %}var(--neon-yellow){% else %}var(--neon-red){% endif %};">
+            {{ a.risk_score }}
+          </td>
+          <td style="font-size:0.85rem;">{{ "%.0f"|format(a.rule_score or 0) }}</td>
+          <td style="font-size:0.85rem;">{{ "%.0f"|format(a.nlp_score or 0) }}</td>
+          <td style="font-size:0.85rem;">{{ "%.0f"|format(a.regex_score or 0) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted" style="text-align:center; padding:2rem 0; font-size:0.875rem;">No analyses in the system yet.</p>
+  {% endif %}
+</div>
+
+<!-- Add Rule Modal -->
+<div id="add-rule-modal" style="display:none; position:fixed; inset:0; z-index:2000; align-items:center; justify-content:center;
+     background:rgba(0,0,0,0.6); backdrop-filter:blur(8px);">
+  <div class="card" style="width:100%; max-width:480px; border-color:rgba(0,217,255,0.2);">
+    <div class="flex-between" style="margin-bottom:1.25rem;">
+      <h3 style="font-size:1.1rem; font-weight:700;">Add Detection Rule</h3>
+      <button onclick="document.getElementById('add-rule-modal').style.display='none'"
+              style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.25rem;">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <input type="text" class="form-control" id="rule-category" placeholder="e.g. urgent_language, phishing_url" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pattern (text or regex)</label>
+      <input type="text" class="form-control" id="rule-pattern" placeholder="e.g. act immediately" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Weight (0.1 – 2.0)</label>
+      <input type="number" class="form-control" id="rule-weight" value="1.0" min="0.1" max="2.0" step="0.1" />
+    </div>
+    <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+      <button onclick="document.getElementById('add-rule-modal').style.display='none'" class="btn btn-outline">Cancel</button>
+      <button onclick="addRule()" class="btn btn-primary">Add Rule</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if total_analyses > 0 %}
+const ctx = document.getElementById('adminRiskChart')?.getContext('2d');
+if (ctx) {
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Safe', 'Suspicious', 'High Risk'],
+      datasets: [{
+        data: [{{ safe_count }}, {{ suspicious_count }}, {{ high_risk_count }}],
+        backgroundColor: ['rgba(57,255,20,0.75)', 'rgba(255,215,0,0.75)', 'rgba(255,68,68,0.75)'],
+        borderColor: ['#39FF14', '#FFD700', '#FF4444'],
+        borderWidth: 2, hoverOffset: 8,
+      }]
+    },
+    options: {
+      cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8892a4', padding: 16, font: { size: 12 } } }
+      },
+      animation: { duration: 1200 }
+    }
+  });
+}
+{% endif %}
+
+async function toggleRule(ruleId) {
+  const resp = await fetch(`/admin/rules/${ruleId}/toggle`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
+  });
+  const data = await resp.json();
+  if (data.success) {
+    const statusEl = document.getElementById(`rule-status-${ruleId}`);
+    if (data.is_active) {
+      statusEl.className = 'badge badge-safe';
+      statusEl.textContent = '● Active';
+    } else {
+      statusEl.className = 'badge badge-high_risk';
+      statusEl.textContent = '● Inactive';
+    }
+  }
+}
+
+async function addRule() {
+  const category = document.getElementById('rule-category').value.trim();
+  const pattern  = document.getElementById('rule-pattern').value.trim();
+  const weight   = parseFloat(document.getElementById('rule-weight').value);
+  if (!category || !pattern) { alert('Category and pattern are required.'); return; }
+
+  const resp = await fetch('/admin/rules/add', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+    },
+    body: JSON.stringify({ category, pattern, weight })
+  });
+  const data = await resp.json();
+  if (data.success) {
+    document.getElementById('add-rule-modal').style.display = 'none';
+    window.location.reload();
+  }
+}
+
+function exportReport() {
+  const data = {
+    generated: new Date().toISOString(),
+    total_users: {{ total_users }},
+    total_analyses: {{ total_analyses }},
+    safe: {{ safe_count }},
+    suspicious: {{ suspicious_count }},
+    high_risk: {{ high_risk_count }},
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `phishshield-report-${Date.now()}.json`;
+  a.click(); URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+{% block title %}Analyze Message — PhishShield AI{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+  <div class="flex-between" style="margin-bottom:1.75rem; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <h1 class="page-title" style="margin-bottom:0.2rem;">
+        <span>Analyze</span> Message
+      </h1>
+      <p class="text-muted" style="font-size:0.9rem;">Paste or upload a suspicious email or message for instant AI analysis</p>
+    </div>
+    {% if result %}
+    <a href="{{ url_for('analysis') }}" class="btn btn-outline">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.46"/></svg>
+      Analyze Another
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{% if not result %}
+<!-- Input Form -->
+<div class="card card-glow animate-in-delay-1" style="border-color:rgba(0,217,255,0.15); margin-bottom:1.5rem;">
+  <form method="POST" action="{{ url_for('analysis') }}" enctype="multipart/form-data" id="analysis-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+    <!-- Text area -->
+    <div class="form-group">
+      <div class="flex-between" style="margin-bottom:0.45rem;">
+        <label class="form-label" for="message_text" style="margin-bottom:0;">Message Text</label>
+        <span id="char-count" style="font-size:0.78rem; color:var(--text-muted);">0 / 10,000</span>
+      </div>
+      <textarea class="form-control" id="message_text" name="message_text"
+                rows="10" placeholder="Paste the suspicious email, SMS, or message here…
+&#10;&#10;Example: Dear Customer, Your account has been suspended. Click here to verify: http://bit.ly/3xK92n"
+                maxlength="10000" oninput="updateCharCount(this)"
+                style="font-family:monospace; font-size:0.9rem; resize:vertical; line-height:1.6;"></textarea>
+    </div>
+
+    <!-- Divider -->
+    <div style="display:flex; align-items:center; gap:1rem; margin:1rem 0;">
+      <hr style="flex:1; border:none; border-top:1px solid var(--glass-border);" />
+      <span class="text-muted" style="font-size:0.8rem;">OR UPLOAD A FILE</span>
+      <hr style="flex:1; border:none; border-top:1px solid var(--glass-border);" />
+    </div>
+
+    <!-- Drag & Drop Upload -->
+    <div id="drop-zone" class="form-group"
+         style="border:2px dashed var(--glass-border); border-radius:12px; padding:2rem; text-align:center;
+                transition:all 0.2s; cursor:pointer;"
+         onclick="document.getElementById('message_file').click()"
+         ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+      <input type="file" id="message_file" name="message_file" accept=".txt,.eml" style="display:none;"
+             onchange="handleFileSelect(this)" />
+      <div id="drop-text">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             style="color:var(--text-muted); margin-bottom:0.5rem; display:block; margin-left:auto; margin-right:auto;">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:0.25rem;">
+          Drag &amp; drop <strong style="color:var(--neon-blue);">.txt</strong> or <strong style="color:var(--neon-blue);">.eml</strong> file here
+        </p>
+        <p style="color:var(--text-muted); font-size:0.78rem;">or click to browse (max 1MB)</p>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block" id="analyze-btn" style="font-size:1rem; padding:0.85rem;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Scan for Phishing
+    </button>
+  </form>
+</div>
+
+<!-- Loading overlay (hidden) -->
+<div id="loading-overlay" style="display:none; text-align:center; padding:3rem;">
+  <div style="display:inline-flex; flex-direction:column; align-items:center; gap:1rem;">
+    <div style="width:64px; height:64px; border:3px solid rgba(0,217,255,0.15); border-top-color:var(--neon-blue); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+    <p style="color:var(--neon-blue); font-size:1rem; font-weight:600;">Analyzing with AI engines…</p>
+    <div style="display:flex; gap:0.5rem;">
+      <span style="font-size:0.8rem; color:var(--text-muted);">Rule-Based</span>
+      <span style="color:var(--text-muted);">·</span>
+      <span style="font-size:0.8rem; color:var(--text-muted);">NLP Tone</span>
+      <span style="color:var(--text-muted);">·</span>
+      <span style="font-size:0.8rem; color:var(--text-muted);">Regex Detector</span>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- RESULTS SECTION -->
+<div class="animate-in">
+
+  <!-- Risk Score Hero -->
+  <div class="card card-glow" style="
+    border-color: {% if result.risk_level=='safe' %}rgba(57,255,20,0.3){% elif result.risk_level=='suspicious' %}rgba(255,215,0,0.3){% else %}rgba(255,68,68,0.3){% endif %};
+    margin-bottom:1.5rem; text-align:center; padding:2.5rem;
+    background: {% if result.risk_level=='safe' %}rgba(57,255,20,0.04){% elif result.risk_level=='suspicious' %}rgba(255,215,0,0.04){% else %}rgba(255,68,68,0.04){% endif %};">
+
+    <div style="font-size:3.5rem; margin-bottom:0.5rem;">{{ result.emoji }}</div>
+
+    <!-- Circular score gauge -->
+    <div style="position:relative; display:inline-flex; align-items:center; justify-content:center; margin:1rem auto;">
+      <svg width="160" height="160" viewBox="0 0 160 160" style="transform:rotate(-90deg);">
+        <circle cx="80" cy="80" r="65" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+        <circle cx="80" cy="80" r="65" fill="none"
+                stroke="{% if result.risk_level=='safe' %}#39FF14{% elif result.risk_level=='suspicious' %}#FFD700{% else %}#FF4444{% endif %}"
+                stroke-width="10" stroke-linecap="round"
+                stroke-dasharray="{{ (result.final_score / 100 * 408.41)|int }} 408.41"
+                style="filter:drop-shadow(0 0 8px {% if result.risk_level=='safe' %}rgba(57,255,20,0.7){% elif result.risk_level=='suspicious' %}rgba(255,215,0,0.7){% else %}rgba(255,68,68,0.7){% endif %});
+                       transition: stroke-dasharray 1.5s cubic-bezier(0.4,0,0.2,1);" />
+      </svg>
+      <div style="position:absolute; text-align:center;">
+        <div style="font-size:2.5rem; font-weight:900; line-height:1;
+                    color:{% if result.risk_level=='safe' %}var(--neon-green){% elif result.risk_level=='suspicious' %}var(--neon-yellow){% else %}var(--neon-red){% endif %};">
+          {{ result.final_score }}
+        </div>
+        <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">/ 100</div>
+      </div>
+    </div>
+
+    <div>
+      <span class="badge badge-{{ result.risk_level }}" style="font-size:0.9rem; padding:0.5rem 1.25rem;">
+        {{ result.label }}
+      </span>
+    </div>
+    <p style="margin-top:0.75rem; font-size:0.875rem; color:var(--text-muted);">
+      Detection Confidence: <strong style="color:var(--text-primary);">{{ result.confidence }}</strong>
+    </p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+    <!-- Engine Scores -->
+    <div class="card">
+      <h3 style="font-size:1rem; font-weight:700; margin-bottom:1.25rem;">Engine Breakdown</h3>
+
+      <div style="margin-bottom:1rem;">
+        <div class="flex-between" style="margin-bottom:0.35rem;">
+          <span style="font-size:0.85rem; font-weight:600;">
+            <span style="color:var(--neon-blue);">●</span> Rule-Based
+          </span>
+          <span style="font-size:0.85rem; color:var(--text-muted);">40% weight · <strong style="color:var(--text-primary);">{{ result.rule_score }}</strong></span>
+        </div>
+        <div class="score-bar">
+          <div class="score-fill" style="width:{{ result.rule_score }}%; background:linear-gradient(90deg,#0085a1,var(--neon-blue));"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem;">
+        <div class="flex-between" style="margin-bottom:0.35rem;">
+          <span style="font-size:0.85rem; font-weight:600;">
+            <span style="color:var(--neon-purple);">●</span> NLP Tone
+          </span>
+          <span style="font-size:0.85rem; color:var(--text-muted);">35% weight · <strong style="color:var(--text-primary);">{{ result.nlp_score }}</strong></span>
+        </div>
+        <div class="score-bar">
+          <div class="score-fill" style="width:{{ result.nlp_score }}%; background:linear-gradient(90deg,#7a10b0,var(--neon-purple));"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="flex-between" style="margin-bottom:0.35rem;">
+          <span style="font-size:0.85rem; font-weight:600;">
+            <span style="color:var(--neon-green);">●</span> Regex Links
+          </span>
+          <span style="font-size:0.85rem; color:var(--text-muted);">25% weight · <strong style="color:var(--text-primary);">{{ result.regex_score }}</strong></span>
+        </div>
+        <div class="score-bar">
+          <div class="score-fill" style="width:{{ result.regex_score }}%; background:linear-gradient(90deg,#1a7000,var(--neon-green));"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:1.25rem;">
+        <canvas id="engineChart" height="160"></canvas>
+      </div>
+    </div>
+
+    <!-- Safety Tips -->
+    <div class="card" style="border-color:rgba(57,255,20,0.12);">
+      <h3 style="font-size:1rem; font-weight:700; margin-bottom:1rem;">🛡️ Safety Recommendations</h3>
+      <div style="display:flex; flex-direction:column; gap:0.75rem;">
+        {% for tip in result.tips %}
+        <div style="padding:0.75rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:10px; font-size:0.875rem; line-height:1.5; color:var(--text-primary);">
+          {{ tip }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Threat Findings -->
+  {% if result.findings %}
+  <div class="card" style="margin-bottom:1.5rem; border-color:rgba(255,68,68,0.15);">
+    <h3 style="font-size:1rem; font-weight:700; margin-bottom:1rem;">
+      🚩 Threat Findings
+      <span style="font-size:0.8rem; font-weight:400; color:var(--text-muted);">({{ result.findings|length }} detected)</span>
+    </h3>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:0.75rem;">
+      {% for finding in result.findings %}
+      <div style="display:flex; align-items:flex-start; gap:0.6rem; padding:0.75rem; background:rgba(255,68,68,0.05); border:1px solid rgba(255,68,68,0.15); border-radius:10px;">
+        <span style="color:var(--neon-red); flex-shrink:0; font-size:1rem;">⚠</span>
+        <span style="font-size:0.85rem; line-height:1.4; color:var(--text-primary);">{{ finding }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="margin-bottom:1.5rem; border-color:rgba(57,255,20,0.15); text-align:center; padding:1.5rem;">
+    <span style="font-size:1.5rem;">✅</span>
+    <p style="margin-top:0.5rem; color:var(--neon-green); font-weight:600;">No suspicious patterns detected</p>
+  </div>
+  {% endif %}
+
+  <!-- Highlighted Text -->
+  <div class="card">
+    <h3 style="font-size:1rem; font-weight:700; margin-bottom:0.75rem;">📄 Analyzed Message
+      <span style="font-size:0.78rem; font-weight:400; color:var(--text-muted); margin-left:0.5rem;">
+        (suspicious phrases <mark class="highlight-suspicious" style="font-size:0.78rem;">highlighted</mark>)
+      </span>
+    </h3>
+    <div style="background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); border-radius:10px; padding:1.25rem;
+                font-family:monospace; font-size:0.875rem; line-height:1.7; color:var(--text-muted);
+                white-space:pre-wrap; word-break:break-word; max-height:350px; overflow-y:auto;">
+      {{ result.highlighted_text|safe }}
+    </div>
+  </div>
+
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateCharCount(el) {
+  document.getElementById('char-count').textContent = `${el.value.length.toLocaleString()} / 10,000`;
+  document.getElementById('char-count').style.color = el.value.length > 9000 ? 'var(--neon-yellow)' : 'var(--text-muted)';
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  const dz = document.getElementById('drop-zone');
+  dz.style.borderColor = 'var(--neon-blue)';
+  dz.style.background = 'rgba(0,217,255,0.04)';
+}
+function handleDragLeave(e) {
+  const dz = document.getElementById('drop-zone');
+  dz.style.borderColor = 'var(--glass-border)';
+  dz.style.background = '';
+}
+function handleDrop(e) {
+  e.preventDefault();
+  handleDragLeave(e);
+  const file = e.dataTransfer.files[0];
+  if (file) applyFile(file);
+}
+function handleFileSelect(input) {
+  if (input.files[0]) applyFile(input.files[0]);
+}
+function applyFile(file) {
+  const dz = document.getElementById('drop-zone');
+  document.getElementById('drop-text').innerHTML = `
+    <div style="color:var(--neon-green); font-size:2rem; margin-bottom:0.35rem;">📄</div>
+    <p style="color:var(--neon-green); font-weight:600; font-size:0.9rem;">${file.name}</p>
+    <p style="color:var(--text-muted); font-size:0.78rem;">${(file.size/1024).toFixed(1)} KB</p>`;
+  dz.style.borderColor = 'var(--neon-green)';
+}
+
+// Show loading on submit
+document.getElementById('analysis-form')?.addEventListener('submit', function(e) {
+  const text = document.getElementById('message_text').value;
+  const file = document.getElementById('message_file').files[0];
+  if (!text.trim() && !file) { e.preventDefault(); return; }
+  this.style.display = 'none';
+  document.getElementById('loading-overlay').style.display = 'block';
+});
+
+{% if result %}
+// Engine radar/bar chart
+const ctx = document.getElementById('engineChart')?.getContext('2d');
+if (ctx) {
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Rule-Based (40%)', 'NLP Tone (35%)', 'Regex (25%)'],
+      datasets: [{
+        label: 'Score',
+        data: [{{ result.rule_score }}, {{ result.nlp_score }}, {{ result.regex_score }}],
+        backgroundColor: ['rgba(0,217,255,0.6)', 'rgba(176,38,255,0.6)', 'rgba(57,255,20,0.6)'],
+        borderColor: ['#00D9FF', '#B026FF', '#39FF14'],
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      scales: {
+        x: {
+          min: 0, max: 100,
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#8892a4', font: { size: 11 } }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#8892a4', font: { size: 11 } }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` Score: ${ctx.parsed.x}/100` } }
+      },
+      animation: { duration: 1000 }
+    }
+  });
+}
+{% endif %}
+</script>
+{% endblock %}

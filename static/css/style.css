@@ -1,0 +1,134 @@
+/* PhishShield AI — Custom Stylesheet
+   Complements the embedded styles in base.html */
+
+/* ─── Additional Component Styles ─── */
+
+/* Stat card hover glow */
+.card.stat-safe:hover    { box-shadow: 0 0 30px rgba(57,255,20,0.12); border-color: rgba(57,255,20,0.35); }
+.card.stat-warn:hover    { box-shadow: 0 0 30px rgba(255,215,0,0.12); border-color: rgba(255,215,0,0.35); }
+.card.stat-danger:hover  { box-shadow: 0 0 30px rgba(255,68,68,0.12); border-color: rgba(255,68,68,0.35); }
+.card.stat-blue:hover    { box-shadow: 0 0 30px rgba(0,217,255,0.12); border-color: rgba(0,217,255,0.35); }
+
+/* ─── Password Strength ─── */
+#strength-bar { transition: width 0.4s ease, background-color 0.4s ease; }
+
+/* ─── Risk Score Ring animation ─── */
+circle[stroke-dasharray] {
+  animation: drawRing 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes drawRing {
+  from { stroke-dasharray: 0 408.41; }
+}
+
+/* ─── Neon text glow variants ─── */
+.glow-blue   { text-shadow: 0 0 20px rgba(0,217,255,0.7),   0 0 40px rgba(0,217,255,0.3); }
+.glow-green  { text-shadow: 0 0 20px rgba(57,255,20,0.7),   0 0 40px rgba(57,255,20,0.3); }
+.glow-purple { text-shadow: 0 0 20px rgba(176,38,255,0.7),  0 0 40px rgba(176,38,255,0.3); }
+.glow-red    { text-shadow: 0 0 20px rgba(255,68,68,0.7),   0 0 40px rgba(255,68,68,0.3); }
+
+/* ─── Border glow variants ─── */
+.border-glow-blue   { box-shadow: 0 0 20px rgba(0,217,255,0.15),   inset 0 0 20px rgba(0,217,255,0.02); }
+.border-glow-green  { box-shadow: 0 0 20px rgba(57,255,20,0.15),   inset 0 0 20px rgba(57,255,20,0.02); }
+.border-glow-purple { box-shadow: 0 0 20px rgba(176,38,255,0.15),  inset 0 0 20px rgba(176,38,255,0.02); }
+.border-glow-red    { box-shadow: 0 0 20px rgba(255,68,68,0.15),   inset 0 0 20px rgba(255,68,68,0.02); }
+
+/* ─── Finding Cards ─── */
+.finding-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  background: rgba(255,68,68,0.05);
+  border: 1px solid rgba(255,68,68,0.15);
+  border-radius: 10px;
+  transition: border-color 0.2s;
+}
+.finding-card:hover { border-color: rgba(255,68,68,0.35); }
+
+/* ─── Tip card ─── */
+.tip-card {
+  padding: 0.85rem;
+  background: rgba(0,217,255,0.04);
+  border: 1px solid rgba(0,217,255,0.1);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+.tip-card:hover { border-color: rgba(0,217,255,0.25); }
+
+/* ─── Loading spinner ─── */
+.spinner {
+  width: 48px; height: 48px;
+  border: 3px solid rgba(0,217,255,0.15);
+  border-top-color: var(--neon-blue);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+/* ─── OTP Input boxes ─── */
+.otp-digit {
+  width: 52px; height: 60px;
+  text-align: center; font-size: 1.5rem; font-weight: 700;
+  background: rgba(255,255,255,0.04);
+  border: 2px solid var(--glass-border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  caret-color: var(--neon-green);
+}
+.otp-digit:focus {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 0 3px rgba(57,255,20,0.15);
+}
+.otp-digit.filled { border-color: var(--neon-blue); }
+
+/* ─── Modal backdrop ─── */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.2s ease;
+}
+
+/* ─── Drag & Drop zone ─── */
+#drop-zone {
+  transition: border-color 0.2s, background 0.2s;
+}
+#drop-zone.drag-active {
+  border-color: var(--neon-blue);
+  background: rgba(0,217,255,0.04);
+}
+
+/* ─── Session warning toast ─── */
+#session-warning {
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Table row hover ─── */
+.table tbody tr {
+  transition: background 0.15s;
+}
+
+/* ─── Responsive grid fixes ─── */
+@media (max-width: 900px) {
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr;
+  }
+  .flex-between {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
