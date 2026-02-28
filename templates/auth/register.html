@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}Register — PhishShield AI{% endblock %}
+
+{% block content %}
+<div style="min-height:calc(100vh - 64px); display:flex; align-items:center; justify-content:center; padding:2rem 1rem;">
+  <div style="width:100%; max-width:460px;">
+
+    <!-- Header -->
+    <div class="text-center animate-in" style="margin-bottom:1.75rem;">
+      <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:18px; background:rgba(176,38,255,0.08); border:1px solid rgba(176,38,255,0.25); margin-bottom:1rem; box-shadow:0 0 30px rgba(176,38,255,0.2);">
+        <svg width="34" height="34" viewBox="0 0 28 28" fill="none" style="filter:drop-shadow(0 0 8px rgba(176,38,255,0.8))">
+          <path d="M14 2L4 7V14C4 19.5 8.5 24.6 14 26C19.5 24.6 24 19.5 24 14V7L14 2Z"
+                fill="rgba(176,38,255,0.2)" stroke="#B026FF" stroke-width="1.5"/>
+          <path d="M10 14L12.5 16.5L18 11" stroke="#B026FF" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1 style="font-size:1.6rem; font-weight:800; letter-spacing:-0.02em;">
+        Create Your <span style="color:var(--neon-purple);">Account</span>
+      </h1>
+      <p class="text-muted" style="font-size:0.875rem; margin-top:0.4rem;">Join PhishShield AI and start protecting yourself</p>
+    </div>
+
+    <!-- Card -->
+    <div class="card card-glow animate-in-delay-1" style="border-color:rgba(176,38,255,0.15);">
+      <form method="POST" action="{{ url_for('auth.register') }}" novalidate id="register-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </span>
+            <input type="text" class="form-control" id="username" name="username"
+                   placeholder="e.g. jsmith" required minlength="3" autocomplete="username" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </span>
+            <input type="email" class="form-control" id="email" name="email"
+                   placeholder="you@university.edu" required autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <input type="password" class="form-control" id="password" name="password"
+                   placeholder="••••••••" required autocomplete="new-password"
+                   oninput="updateStrength(this.value)" />
+            <button type="button" onclick="togglePassword('password',this)"
+                    style="position:absolute;right:0.9rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <!-- Strength Meter -->
+          <div style="margin-top:0.5rem;">
+            <div style="height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;">
+              <div id="strength-bar" style="height:100%;width:0%;border-radius:2px;transition:all 0.4s;"></div>
+            </div>
+            <p id="strength-label" style="font-size:0.75rem;margin-top:0.3rem;color:var(--text-muted);"></p>
+          </div>
+          <!-- Requirements checklist -->
+          <ul style="list-style:none;margin-top:0.6rem;display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">
+            <li id="req-len"  class="req-item">✕ 8+ characters</li>
+            <li id="req-upper" class="req-item">✕ Uppercase letter</li>
+            <li id="req-lower" class="req-item">✕ Lowercase letter</li>
+            <li id="req-num"  class="req-item">✕ Number</li>
+            <li id="req-spec" class="req-item" style="grid-column:span 2;">✕ Special character (!@#$…)</li>
+          </ul>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirm_password">Confirm Password</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </span>
+            <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                   placeholder="••••••••" required autocomplete="new-password"
+                   oninput="checkMatch()" />
+          </div>
+          <p id="match-msg" style="font-size:0.75rem;margin-top:0.3rem;display:none;"></p>
+        </div>
+
+        <button type="submit" class="btn btn-success btn-block" style="margin-top:0.5rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          Create Account
+        </button>
+      </form>
+    </div>
+
+    <p class="text-center text-muted animate-in-delay-2" style="margin-top:1.25rem; font-size:0.875rem;">
+      Already have an account?
+      <a href="{{ url_for('auth.login') }}" style="color:var(--neon-blue); text-decoration:none; font-weight:600;">Sign in →</a>
+    </p>
+  </div>
+</div>
+
+<style>
+.req-item { font-size:0.75rem; color:var(--text-muted); transition:color 0.2s; }
+.req-item.met { color:var(--neon-green); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePassword(id, btn) {
+  const f = document.getElementById(id);
+  f.type = f.type === 'password' ? 'text' : 'password';
+}
+
+function updateStrength(pw) {
+  const bar = document.getElementById('strength-bar');
+  const label = document.getElementById('strength-label');
+  let score = 0;
+
+  const checks = {
+    'req-len':   pw.length >= 8,
+    'req-upper': /[A-Z]/.test(pw),
+    'req-lower': /[a-z]/.test(pw),
+    'req-num':   /\d/.test(pw),
+    'req-spec':  /[!@#$%^&*(),.?":{}|<>]/.test(pw),
+  };
+
+  for (const [id, met] of Object.entries(checks)) {
+    const el = document.getElementById(id);
+    if (met) { el.classList.add('met'); el.textContent = '✓' + el.textContent.slice(1); score++; }
+    else      { el.classList.remove('met'); el.textContent = '✕' + el.textContent.slice(1); }
+  }
+
+  const levels = [
+    { w:'0%',  color:'transparent', text:'' },
+    { w:'20%', color:'#FF4444', text:'Very Weak' },
+    { w:'40%', color:'#FF8C00', text:'Weak' },
+    { w:'60%', color:'#FFD700', text:'Fair' },
+    { w:'80%', color:'#00BFFF', text:'Strong' },
+    { w:'100%',color:'#39FF14', text:'Very Strong 💪' },
+  ];
+  bar.style.width = levels[score].w;
+  bar.style.background = levels[score].color;
+  label.textContent = levels[score].text;
+  label.style.color = levels[score].color;
+}
+
+function checkMatch() {
+  const pw = document.getElementById('password').value;
+  const cf = document.getElementById('confirm_password').value;
+  const msg = document.getElementById('match-msg');
+  if (!cf) { msg.style.display='none'; return; }
+  msg.style.display = 'block';
+  if (pw === cf) {
+    msg.textContent = '✓ Passwords match';
+    msg.style.color = 'var(--neon-green)';
+  } else {
+    msg.textContent = '✕ Passwords do not match';
+    msg.style.color = 'var(--neon-red)';
+  }
+}
+</script>
+{% endblock %}

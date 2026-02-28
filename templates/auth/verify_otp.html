@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Verify Email — PhishShield AI{% endblock %}
+
+{% block content %}
+<div style="min-height:calc(100vh - 64px); display:flex; align-items:center; justify-content:center; padding:2rem 1rem;">
+  <div style="width:100%; max-width:420px;">
+
+    <div class="text-center animate-in" style="margin-bottom:1.75rem;">
+      <div style="display:inline-flex; align-items:center; justify-content:center; width:72px; height:72px; border-radius:20px; background:rgba(57,255,20,0.08); border:1px solid rgba(57,255,20,0.25); margin-bottom:1rem; box-shadow:0 0 30px rgba(57,255,20,0.15);">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#39FF14" stroke-width="2" style="filter:drop-shadow(0 0 8px rgba(57,255,20,0.7))">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+      </div>
+      <h1 style="font-size:1.6rem; font-weight:800; letter-spacing:-0.02em;">
+        Verify Your <span style="color:var(--neon-green);">Email</span>
+      </h1>
+      <p class="text-muted" style="font-size:0.9rem; margin-top:0.4rem;">
+        Enter the 6-digit OTP sent to your email
+      </p>
+      <div id="countdown-display" style="margin-top:0.75rem; padding:0.5rem 1rem; display:inline-block;
+           background:rgba(57,255,20,0.08); border:1px solid rgba(57,255,20,0.2); border-radius:8px;
+           font-size:0.875rem; color:var(--neon-green);">
+        ⏱ Expires in <strong id="otp-timer">15:00</strong>
+      </div>
+    </div>
+
+    <div class="card card-glow animate-in-delay-1" style="border-color:rgba(57,255,20,0.15);">
+      <form method="POST" action="{{ url_for('auth.verify_otp', user_id=user_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        <div class="form-group" style="text-align:center;">
+          <label class="form-label" style="text-align:left; display:block;">One-Time Password (OTP)</label>
+          <div id="otp-boxes" style="display:flex; gap:0.5rem; justify-content:center; margin:0.75rem 0;">
+            <input type="text" maxlength="1" class="otp-digit" data-index="0" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="1" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="2" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="3" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="4" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="5" inputmode="numeric" pattern="[0-9]" />
+          </div>
+          <input type="hidden" name="otp" id="otp-hidden" />
+        </div>
+
+        <button type="submit" class="btn btn-success btn-block" id="verify-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Verify Email
+        </button>
+      </form>
+
+      <hr class="divider" />
+      <p class="text-center text-muted" style="font-size:0.875rem;">
+        Didn't receive it? Check your spam folder or
+        <a href="{{ url_for('auth.register') }}" style="color:var(--neon-blue); text-decoration:none;">register again</a>.
+      </p>
+    </div>
+  </div>
+</div>
+
+<style>
+.otp-digit {
+  width: 52px; height: 60px;
+  text-align: center; font-size: 1.5rem; font-weight: 700;
+  background: rgba(255,255,255,0.04);
+  border: 2px solid var(--glass-border);
+  border-radius: 10px; color: var(--text-primary);
+  outline: none; transition: all 0.2s;
+}
+.otp-digit:focus {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 0 3px rgba(57,255,20,0.15), 0 0 15px rgba(57,255,20,0.1);
+  background: rgba(57,255,20,0.04);
+}
+.otp-digit.filled { border-color: var(--neon-blue); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// OTP digit boxes
+const digits = document.querySelectorAll('.otp-digit');
+const hidden = document.getElementById('otp-hidden');
+
+digits.forEach((input, i) => {
+  input.addEventListener('input', (e) => {
+    const val = e.target.value.replace(/\D/g,'');
+    e.target.value = val;
+    if (val) {
+      e.target.classList.add('filled');
+      if (i < 5) digits[i+1].focus();
+    } else {
+      e.target.classList.remove('filled');
+    }
+    hidden.value = [...digits].map(d=>d.value).join('');
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !input.value && i > 0) digits[i-1].focus();
+  });
+  input.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+    paste.split('').forEach((ch, j) => { if (digits[j]) { digits[j].value=ch; digits[j].classList.add('filled'); } });
+    hidden.value = paste;
+    if (digits[paste.length-1]) digits[paste.length-1].focus();
+  });
+});
+digits[0].focus();
+
+// Countdown timer (15 min)
+let seconds = 15 * 60;
+const timerEl = document.getElementById('otp-timer');
+const interval = setInterval(() => {
+  if (--seconds <= 0) {
+    clearInterval(interval);
+    timerEl.textContent = 'EXPIRED';
+    timerEl.style.color = 'var(--neon-red)';
+    document.getElementById('verify-btn').disabled = true;
+    return;
+  }
+  const m = Math.floor(seconds/60).toString().padStart(2,'0');
+  const s = (seconds%60).toString().padStart(2,'0');
+  timerEl.textContent = `${m}:${s}`;
+  if (seconds < 120) timerEl.style.color = 'var(--neon-red)';
+  else if (seconds < 300) timerEl.style.color = 'var(--neon-yellow)';
+}, 1000);
+</script>
+{% endblock %}
